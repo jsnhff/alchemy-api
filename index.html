@@ -22,7 +22,8 @@
         <![endif]-->
 
         <!-- Add your site or application content here -->
-        <p>Hello world! This is HTML5 Boilerplate.</p>
+        <p>Boo!</p>
+
 
         <script src="//ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
         <script>window.jQuery || document.write('<script src="js/vendor/jquery-1.10.2.min.js"><\/script>')</script>
@@ -37,6 +38,20 @@
             e.src='//www.google-analytics.com/analytics.js';
             r.parentNode.insertBefore(e,r)}(window,document,'script','ga'));
             ga('create','UA-XXXXX-X');ga('send','pageview');
+        </script>
+        <script>
+            var alchemyTextSent = "http://access.alchemyapi.com/calls/url/URLGetTextSentiment";
+            var apikey = "eaada21b94f8b0859f447d403dd7f3327652d9c8";
+            var sourceText = "http://www.washingtonpost.com/blogs/capital-weather-gang/wp/2013/08/14/d-c-area-forecast-ultra-nice-weather-dominates-next-few-days/"; 
+            var outputMode = "json";
+
+            var url = alchemyTextSent + "?url=" + sourceText + "&apikey=" + apikey + "&outputMode=" + outputMode;
+            $.get(
+                 url,
+                 function(data, status, xhr) {
+                     alert(data);
+                 }
+            );
         </script>
     </body>
 </html>
