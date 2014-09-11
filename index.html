@@ -45,13 +45,13 @@
             var sourceText = "http://www.washingtonpost.com/blogs/capital-weather-gang/wp/2013/08/14/d-c-area-forecast-ultra-nice-weather-dominates-next-few-days/"; 
             var outputMode = "json";
 
-            var url = alchemyTextSent + "?url=" + sourceText + "&apikey=" + apikey + "&outputMode=" + outputMode;
-            $.get(
-                 url,
-                 function(data, status, xhr) {
-                     alert(data);
-                 }
-            );
+            var urlQuery = alchemyTextSent + "?url=" + sourceText + "&apikey=" + apikey + "&outputMode=" + outputMode;
+            $.ajax({
+                url: urlQuery,
+                success: function(results) {
+                    console.log("Success");
+                }
+            });
         </script>
     </body>
 </html>
