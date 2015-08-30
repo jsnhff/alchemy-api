@@ -2,13 +2,13 @@
     <head>
         <meta charset="utf-8">
         <meta http-equiv="X-UA-Compatible" content="IE=edge">
-        <title>Fun test</title>
-        <meta name="description" content="">
+        <title>Sentimental Book Analysis</title>
+        <meta name="description" content="Parse all the words in an XML book and bring back the analysis from Alchemy API. Only 1,000 reuqests a day.">
         <meta name="viewport" content="width=device-width, initial-scale=1">
     </head>
     <body>
         <!-- Add your site or application content here -->
-        <p>Testing this shiiiiiit</p>
+        <h1>Testing is happening. Get ready for the long haul.</h1>
         <p id="story"></p>
 
         <script src="//ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
@@ -28,11 +28,17 @@
             
             // Make the story available for everyone!
             var story;
+            var paragraph_analysis;
+            var paragraph;
+
+            // Silly date and time
+            var dt = new Date();
+            var time = (24-dt.getHours()) + " hours " + (60-dt.getMinutes()) + " minutes and " + (60-dt.getSeconds()) + " seconds until API refresh.";
 
             // Load local XML file using ajax -- SUCCESS
             $.ajax({
                 type: "GET",
-                url: "text/keats-endymion.xml",
+                url: "text/keats-endymion_test.xml",
                 dataType: "xml",
                 success: function (xml) {
 
@@ -42,26 +48,28 @@
                     // Loop through each paragraph, evaluate each word, then replace it
                     $(xml).find('body paragraph').each(function () {
 
-                        var paragraph = $(this);
+                        paragraph = $(this);
 
                             // Define our paragraph so we can replace it easily later
-                            var paragraph_text = $(this).text();
+                            paragraph_text = $(this).text();
                             
                             // Tokenize the paragraph so we can send the words off to be evaluated
                             var tokens = RiTa.tokenize(paragraph_text);
 
                             // Send each word out to be evaluated
                             $(tokens).each(function (index, word) {
-                                paragraph_text = paragraph_text.replace(word, "CATS");
+                                //paragraph_text = paragraph_text.replace(word, "CATS");
+                                console.log("send word to be evaled");
+                                analyzeWord(word, index);
                             });
 
                             // Replace original paragraph with new evalutated paragraph
-                            paragraph = paragraph.text(paragraph_text);
+                            //paragraph = paragraph.text(paragraph_text);
                     });
 
                     // Output the new xml with replaced words
                     console.log(xml);
-                    makeXML();
+                    //makeXML();
                 }
             });
 
@@ -71,13 +79,7 @@
                 $.post('save_xml.php', { xml: $(story).find("body").html()}, function(data){alert("Data Loaded: " + data);});
             };
 
-            
-            
-            
-            
-            
-            
-
+            // Send words to Alchemy to be evaluated 
             var analyzeWord = function(word, target){
                 // Query to find sentiment in a whole URL 
                 // var urlQuery = alchemyTextSent + "?url=" + sourceText + "&apikey=" + apikey + "&outputMode=" + outputMode;
@@ -89,13 +91,20 @@
                 $.ajax({
                     url: urlQuery,
                     success: function(results) {
-                        console.log("Success: " + target + " " + word + " Analysis: " + results.docSentiment.type);
-                        if (results.docSentiment.score == null){
-                            var score = "0.000000";
+
+                        // If I'm out of requests, let me know and I'll switch projects or just kick back and relax
+                        if(results.status == "ERROR") {
+                            $("h1").text("Good job on testing champ. You're out of requests for the day. Better luck tomorrow.").append("<h3>"+time+"</h3>");
                         } else {
-                            var score = results.docSentiment.score;
+                            console.log("Success: " + target + " " + word + " Analysis: " + results.docSentiment);
                         };
-                        $("#"+target).addClass(results.docSentiment.type).attr("data-value", score).text(word);
+
+                        //if (results.docSentiment.score == null){
+                        //    var score = "0.000000";
+                        //} else {
+                        //    var score = results.docSentiment.score;
+                        //};
+                        //$("#"+target).addClass(results.docSentiment.type).attr("data-value", score).text(word);
                     }
                 });
             }
