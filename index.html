@@ -8,60 +8,84 @@
     </head>
     <body>
         <!-- Add your site or application content here -->
-        <p>Alchemy API Site</p>
-        <p id="analysis">sentiment analysis</p>
-        <p id="words">words</p>
+        <p>Testing this shiiiiiit</p>
+        <p id="story"></p>
 
         <script src="//ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
         <script>window.jQuery || document.write('<script src="js/vendor/jquery-1.10.2.min.js"><\/script>')</script>
         <script src="js/plugins.js"></script>
         <script src="js/main.js"></script>
         <script src="js/vendor/rita-micro.js"></script>
+
         <script>
+            // Setup all Alchemy variables
             //var alchemyTextSent = "http://access.alchemyapi.com/calls/url/URLGetTextSentiment";
             var alchemyTextSent = "http://access.alchemyapi.com/calls/text/TextGetTextSentiment";
             var apikey = "eaada21b94f8b0859f447d403dd7f3327652d9c8";
             var sourceText = "https://raw.githubusercontent.com/jsnhff/sentimental-poetry/master/test_doc.xml"; 
             var outputMode = "json";
             var sentiment = "1";
-           
-            var tokens;
             
-            var xmlDoc;
-            
+            // Make the story available for everyone!
+            var story;
+
+            // Load local XML file using ajax -- SUCCESS
             $.ajax({
-                url : sourceText,
+                type: "GET",
+                url: "text/keats-endymion.xml",
                 dataType: "xml",
-                success : function (data) {
-                    words = $(data).find('Story').text();
-                    tokens = RiTa.tokenize(words);
-                    
-                    console.log($(data).find('Story').text());
-                    
-                    // Build DOM so targets can match and words and classes can be added
-                    $(tokens).each(function(i) {
-                        $("#analysis").append("<span id='" + i + "'></span>");
-                        
-                        $(data).find('Story').text(function() {
-                            return $(this).text().replace(tokens[i], "<neutral class='fart'>pig</neutral>"); 
-                        });
+                success: function (xml) {
+
+                    // Set story to xml so the xml returned is availabe outside of this call
+                    story = xml;
+
+                    // Loop through each paragraph, evaluate each word, then replace it
+                    $(xml).find('body paragraph').each(function () {
+
+                        var paragraph = $(this);
+
+                            // Define our paragraph so we can replace it easily later
+                            var paragraph_text = $(this).text();
+                            
+                            // Tokenize the paragraph so we can send the words off to be evaluated
+                            var tokens = RiTa.tokenize(paragraph_text);
+
+                            // Send each word out to be evaluated
+                            $(tokens).each(function (index, word) {
+                                paragraph_text = paragraph_text.replace(word, "CATS");
+                            });
+
+                            // Replace original paragraph with new evalutated paragraph
+                            paragraph = paragraph.text(paragraph_text);
                     });
 
-                    // Run analyze function on each word and send target along to keep order serialized
-                    $(tokens).each(function(i) {
-                        //analyzeWord(tokens[i], i);
-                    });
-                    
-                    console.log($(data).find('Story').text());
-                   
+                    // Output the new xml with replaced words
+                    console.log(xml);
+                    makeXML();
                 }
             });
 
+            // Save our new xml file out to the system. You need a PHP server running to get this going.
+            // Use the phpServer alias on the command line, or "php -S 0.0.0.0:8001 -t ."
+            var makeXML = function(){
+                $.post('save_xml.php', { xml: $(story).find("body").html()}, function(data){alert("Data Loaded: " + data);});
+            };
+
+            
+            
+            
+            
+            
+            
 
             var analyzeWord = function(word, target){
-                //var urlQuery = alchemyTextSent + "?url=" + sourceText + "&apikey=" + apikey + "&outputMode=" + outputMode;
+                // Query to find sentiment in a whole URL 
+                // var urlQuery = alchemyTextSent + "?url=" + sourceText + "&apikey=" + apikey + "&outputMode=" + outputMode;
+
+                // Query to find sentiment in raw text or one word. One word is assumed to be English.
                 var urlQuery = alchemyTextSent + "?&apikey=" + apikey + "&text=" + word + "&outputMode=" + outputMode;
 
+                // Async function to evaluate each word passed to the parent function 
                 $.ajax({
                     url: urlQuery,
                     success: function(results) {
