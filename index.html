@@ -5,6 +5,7 @@
         <title>Sentimental Book Analysis</title>
         <meta name="description" content="Parse all the words in an XML book and bring back the analysis from Alchemy API. Only 1,000 reuqests a day.">
         <meta name="viewport" content="width=device-width, initial-scale=1">
+        <link rel="icon" type="image/png" href="">
     </head>
     <body>
         <!-- Add your site or application content here -->
@@ -28,8 +29,8 @@
             
             // Make the story available for everyone!
             var story;
-            var paragraph_analysis;
             var paragraph;
+            var paragraph_number = 0;
 
             // Silly date and time
             var dt = new Date();
@@ -47,7 +48,6 @@
 
                     // Loop through each paragraph, evaluate each word, then replace it
                     $(xml).find('body paragraph').each(function () {
-
                         paragraph = $(this);
 
                             // Define our paragraph so we can replace it easily later
@@ -59,12 +59,15 @@
                             // Send each word out to be evaluated
                             $(tokens).each(function (index, word) {
                                 //paragraph_text = paragraph_text.replace(word, "CATS");
-                                console.log("send word to be evaled");
-                                analyzeWord(word, index);
+                                //console.log("send word to be evaled");
+                                // TODO Remove and punctuation before sending things off to be evaluated 
+                                analyzeWord(word, index, paragraph_number);
+                                //console.log("Current graph num for "+word+" is: "+paragraph_number);
                             });
 
                             // Replace original paragraph with new evalutated paragraph
                             //paragraph = paragraph.text(paragraph_text);
+                            paragraph_number ++;
                     });
 
                     // Output the new xml with replaced words
@@ -80,7 +83,7 @@
             };
 
             // Send words to Alchemy to be evaluated 
-            var analyzeWord = function(word, target){
+            var analyzeWord = function(word, target, paragraph_number){
                 // Query to find sentiment in a whole URL 
                 // var urlQuery = alchemyTextSent + "?url=" + sourceText + "&apikey=" + apikey + "&outputMode=" + outputMode;
 
@@ -95,16 +98,47 @@
                         // If I'm out of requests, let me know and I'll switch projects or just kick back and relax
                         if(results.status == "ERROR") {
                             $("h1").text("Good job on testing champ. You're out of requests for the day. Better luck tomorrow.").append("<h3>"+time+"</h3>");
-                        } else {
-                            console.log("Success: " + target + " " + word + " Analysis: " + results.docSentiment);
-                        };
+                            
+                            // Replace the word in the original story. This belongs in the success bucket, not the error bucket. It's just here for testing.
+                            $(story).find('body paragraph').each(function(index) {
+                                paragraph = $(this);
+                                
+                                // Define our paragraph so we can replace it easily later
+                                paragraph_text = paragraph.text();
 
+                                // Make sure we're replacing words evalutated in the correct paragraph
+                                if(index == paragraph_number) {
+                                    var chosenValue = Math.random() < 0.5;
+
+                                    // Dummy if to randomly wrap words in positive or negative tags.
+                                    // TODO Remove this mock logic and bring back the actual evaluation
+                                    if(chosenValue > 0) {
+                                        paragraph_text = paragraph_text.replace(word, '<positive value="'+index+'">'+word+'</positive>');
+                                        } else {
+                                        paragraph_text = paragraph_text.replace(word, '<negative value="'+index+'">'+word+'</negative>');
+                                    };
+                                    //console.log("Paragraph "+paragraph_number+"--"+index+": "+paragraph_text); 
+                                };
+                                paragraph = paragraph.text(paragraph_text);
+                            });
+
+                        } else {
+                            $("h1").text("Bingo. Testing time.");
+                            console.log("Success: " + target + " " + word + " Analysis: " + results.docSentiment.type +"  "+ results.docSentiment.score);
+                            
+                            // TODO Put replacing code above here once the API requests are ready to use :D 
+
+                        };
+                        
+                        // TODO This could be useful once you have the API up again. You'll need to account for the null scenario.
                         //if (results.docSentiment.score == null){
                         //    var score = "0.000000";
                         //} else {
                         //    var score = results.docSentiment.score;
                         //};
                         //$("#"+target).addClass(results.docSentiment.type).attr("data-value", score).text(word);
+
+//                    makeXML();
                     }
                 });
             }
