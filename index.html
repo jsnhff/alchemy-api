@@ -12,6 +12,10 @@
         <h1>Testing is happening. Get ready for the long haul.</h1>
         <p id="story"></p>
 
+        <hr>
+        <p>Status: <span id="js-status">Not running</span></p>
+        <button id="js-run">Analyze XML doc</button>
+
         <script src="//ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
         <script>window.jQuery || document.write('<script src="js/vendor/jquery-1.10.2.min.js"><\/script>')</script>
         <script src="js/plugins.js"></script>
@@ -22,8 +26,10 @@
             // Setup all Alchemy variables
             //var alchemyTextSent = "http://access.alchemyapi.com/calls/url/URLGetTextSentiment";
             var alchemyTextSent = "http://access.alchemyapi.com/calls/text/TextGetTextSentiment";
-            var apikey = "eaada21b94f8b0859f447d403dd7f3327652d9c8";
-            var sourceText = "https://raw.githubusercontent.com/jsnhff/sentimental-poetry/master/test_doc.xml"; 
+            var alchemyAPICount = "http://access.alchemyapi.com/calls/info/GetAPIKeyInfo";
+            var api_key = "eaada21b94f8b0859f447d403dd7f3327652d9c8";
+            //var sourceText = "text/elon_musk_letter.xml"; 
+            var sourceText = "text/hard_times_2000_lines.xml"; 
             var outputMode = "json";
             var sentiment = "1";
             
@@ -31,64 +37,110 @@
             var story;
             var paragraph;
             var paragraph_number = 0;
+            var total_paragraphs;
+            var word_number = 0; // This increments up every time a request for a words evaluation fires off
+            var total_words = 0;
+            var unique_word_list = [];
 
-            // Silly date and time
+            // Silly date and time and testing variables
+            var alchemy_enabled = true;
             var dt = new Date();
             var time = (24-dt.getHours()) + " hours " + (60-dt.getMinutes()) + " minutes and " + (60-dt.getSeconds()) + " seconds until API refresh.";
 
-            // Load local XML file using ajax -- SUCCESS
-            $.ajax({
-                type: "GET",
-                url: "text/keats-endymion_test.xml",
-                dataType: "xml",
-                success: function (xml) {
+            // Trigger to run this whenever without restarting
+            var runStatus = $('#js-status');
+            var button = $('#js-run');
+            //button.click(analyzeWord);
+            console.log("Ready to load file.");
 
-                    // Set story to xml so the xml returned is availabe outside of this call
-                    story = xml;
+            var ajaxXMLFile = function() {
 
-                    // Loop through each paragraph, evaluate each word, then replace it
-                    $(xml).find('body paragraph').each(function () {
-                        paragraph = $(this);
+                // ******************** 
+                // Load local XML file using ajax -- SUCCESS
+                $.ajax({
+                    type: "GET",
+                    url: "text/hard_times_2000_lines.xml",
+                    dataType: "xml",
+                    success: function (xml) {
+                        console.log("Success! Loaded the XML File");
 
-                            // Define our paragraph so we can replace it easily later
-                            paragraph_text = $(this).text();
-                            
-                            // Tokenize the paragraph so we can send the words off to be evaluated
-                            var tokens = RiTa.tokenize(paragraph_text);
+                        // Set story to xml so the xml returned is availabe outside of this call
+                        story = xml;
+                        total_paragraphs = $(xml).find('body paragraph').length;
 
-                            // Send each word out to be evaluated
-                            $(tokens).each(function (index, word) {
-                                //paragraph_text = paragraph_text.replace(word, "CATS");
-                                //console.log("send word to be evaled");
-                                // TODO Remove and punctuation before sending things off to be evaluated 
-                                analyzeWord(word, index, paragraph_number);
-                                //console.log("Current graph num for "+word+" is: "+paragraph_number);
-                            });
+                        // Set status to running
+                        runStatus.text('Running');
 
-                            // Replace original paragraph with new evalutated paragraph
-                            //paragraph = paragraph.text(paragraph_text);
-                            paragraph_number ++;
-                    });
+                        // Loop through each paragraph, evaluate each word, then replace it
+                        $(xml).find('body paragraph').each(function () {
+                            paragraph = $(this);
+                            console.log("Analyzing paragraph number: "+paragraph_number);
 
-                    // Output the new xml with replaced words
-                    console.log(xml);
-                    //makeXML();
-                }
-            });
+                                // Define our paragraph so we can replace it easily later
+                                paragraph_text = $(this).text();
+                                
+                                // Tokenize the paragraph so we can send the words off to be evaluated
+                                var tokens = paragraph_text.split(" ");
+                                console.log(paragraph_text);
 
-            // Save our new xml file out to the system. You need a PHP server running to get this going.
-            // Use the phpServer alias on the command line, or "php -S 0.0.0.0:8001 -t ."
-            var makeXML = function(){
-                $.post('save_xml.php', { xml: $(story).find("body").html()}, function(data){alert("Data Loaded: " + data);});
+                                //var tokens = ['cats','cats','dogs','socks','socks','socks'];
+
+                                // Compare all words, count duplicates
+                                $.each(tokens, function () {
+                                    // Get word from token
+                                    var u_word = this.valueOf();
+                                    // Remove punctuation and line breaks before sending things off to be evaluated 
+                                    u_word = u_word.replace(/\W[\t|\n|\r|\s]/, "");
+                                    u_word = u_word.trim();
+                                    u_word = RiTa.trimPunctuation(u_word);
+                                    // Increment counter for each word occurance
+                                    unique_word_list[u_word] = unique_word_list[u_word]+1 || 1; 
+                                });
+                                console.log(unique_word_list);
+                                
+                                // TODO Clean this up because I don't think you actually need it 
+                                // Set the number of total words so you know how many ajax requests you're firing off
+                                for (var x in unique_word_list) {
+                                    // Don't count the last array property that has a bunch of extra data bits in it
+                                    // This is kind of a hack becauset the array as an 'associative' array and not an object array
+                                    if (x.substring(0,1) != "_") {
+                                        total_words++;
+                                    };
+                                };
+
+                                // Send each word out to be evaluated
+                                //$(unique_word_list).each(function (index, word) {
+                                for (var x in unique_word_list) {
+                                    var word = x;
+                                    if (word.substring(0,1) == "_") {
+                                            // Do nothing for this bunk property
+                                        } else {
+                                            if (alchemy_enabled == true) {
+                                                analyzeWord(word, 0, paragraph_number);
+                                            }
+                                        };
+                                };
+
+                                // Increment the paragraph number up one please
+                                paragraph_number ++;
+                        });
+
+                        // Output the new xml with replaced words
+                        console.log(xml);
+                    }
+                });
             };
 
+            ajaxXMLFile();
+
+            // ******************** 
             // Send words to Alchemy to be evaluated 
             var analyzeWord = function(word, target, paragraph_number){
                 // Query to find sentiment in a whole URL 
-                // var urlQuery = alchemyTextSent + "?url=" + sourceText + "&apikey=" + apikey + "&outputMode=" + outputMode;
+                // var urlQuery = alchemyTextSent + "?url=" + sourceText + "api_key=" + api_key + "&outputMode=" + outputMode;
 
-                // Query to find sentiment in raw text or one word. One word is assumed to be English.
-                var urlQuery = alchemyTextSent + "?&apikey=" + apikey + "&text=" + word + "&outputMode=" + outputMode;
+                // Query to find sentiment in raw text or one word. If one word the language is assumed to be English.
+                var urlQuery = alchemyTextSent + "?apikey=" + api_key + "&text=" + word + "&outputMode=" + outputMode;
 
                 // Async function to evaluate each word passed to the parent function 
                 $.ajax({
@@ -96,52 +148,108 @@
                     success: function(results) {
 
                         // If I'm out of requests, let me know and I'll switch projects or just kick back and relax
-                        if(results.status == "ERROR") {
+                        if(results.runStatus == "ERROR") {
+
+                            // Display this lovely warning when you are straight-up out of requests
                             $("h1").text("Good job on testing champ. You're out of requests for the day. Better luck tomorrow.").append("<h3>"+time+"</h3>");
-                            
+
+                        } else {
+
+                            // Display this lovely message when it time to test and you have a fresh set of requests available
+                            $("h1").text("Bingo. Testing time.");
+                            //console.log("Target: " + target + " -- Word: " + word + " -- Analysis: " + results.docSentiment.type +": "+ results.docSentiment.score);
+
                             // Replace the word in the original story. This belongs in the success bucket, not the error bucket. It's just here for testing.
                             $(story).find('body paragraph').each(function(index) {
                                 paragraph = $(this);
-                                
+
                                 // Define our paragraph so we can replace it easily later
                                 paragraph_text = paragraph.text();
 
                                 // Make sure we're replacing words evalutated in the correct paragraph
                                 if(index == paragraph_number) {
-                                    var chosenValue = Math.random() < 0.5;
+                                    // Set value type of word
+                                    if (word == "") {
+                                        var valueType = "none";
+                                    } else {
+                                        var valueType = results.docSentiment.type;
+                                    }
 
-                                    // Dummy if to randomly wrap words in positive or negative tags.
-                                    // TODO Remove this mock logic and bring back the actual evaluation
-                                    if(chosenValue > 0) {
-                                        paragraph_text = paragraph_text.replace(word, '<positive value="'+index+'">'+word+'</positive>');
+                                    // Regex to prevent gross partial matches of words and call a global replace
+                                    var regex = new RegExp('\\b'+word+'\\b','g');
+                                    
+                                    // Replace words with value tags
+                                    if(valueType == "neutral") {
+                                        paragraph_text = paragraph_text.replace(regex, '<xneutral xvalue="0.000000">'+word+'</xneutral>');
+                                        } else if (valueType == "negative") {
+                                        paragraph_text = paragraph_text.replace(regex, '<xnegative xvalue="'+results.docSentiment.score+'">'+word+'</xnegative>');
+                                        } else if (valueType == "positive") {
+                                        paragraph_text = paragraph_text.replace(regex, '<xpositive xvalue="'+results.docSentiment.score+'">'+word+'</xpositive>');
                                         } else {
-                                        paragraph_text = paragraph_text.replace(word, '<negative value="'+index+'">'+word+'</negative>');
+                                        //paragraph_text = paragraph_text.replace(regex, '<xnone xvalue="xnull">'+word+'</xnone>');
+                                        console.log("No value defined for this nothing.");
                                     };
-                                    //console.log("Paragraph "+paragraph_number+"--"+index+": "+paragraph_text); 
+                                    
+                                    // Increment the word count up to track all these AJAX requests
+                                    // TODO Figure out how to do this with promises dude
+                                    word_number ++;
+
+                                    if(word_number == total_words) {
+                                        console.log("Processed "+total_words+" unique words.");
+                                        setTimeout("makeXML();", 2000);
+                                    };
                                 };
+                                // Recursively rewrite the original paragraph until all words are upadated and tagged with a value wrapper
                                 paragraph = paragraph.text(paragraph_text);
+
                             });
-
-                        } else {
-                            $("h1").text("Bingo. Testing time.");
-                            console.log("Success: " + target + " " + word + " Analysis: " + results.docSentiment.type +"  "+ results.docSentiment.score);
-                            
-                            // TODO Put replacing code above here once the API requests are ready to use :D 
-
                         };
-                        
-                        // TODO This could be useful once you have the API up again. You'll need to account for the null scenario.
-                        //if (results.docSentiment.score == null){
-                        //    var score = "0.000000";
-                        //} else {
-                        //    var score = results.docSentiment.score;
-                        //};
-                        //$("#"+target).addClass(results.docSentiment.type).attr("data-value", score).text(word);
 
-//                    makeXML();
                     }
                 });
+            };
+
+            // ******************** 
+            // Save our new xml file out to the system. You need a PHP server running to get this going.
+            // Use the phpServer alias on the command line, or "php -S 0.0.0.0:8001 -t ."
+            var makeXML = function(){
+                $.post('save_xml.php', {
+                    xml: $(story).find("body").html()},
+                    function(data){console.log("Wrote dat file");}
+                );
+            };
+
+            // ******************** 
+            // This fella counts paragraphs so when the daily limit is reached we can save the number and start from that point the following day.
+            // Once the daily limit is reached or the doc is finished, it will run the makeXML function and create the document!
+            var countParagraphs = function(){
+                // TODO Count paragraphs
+                // TODO Write counted paragraphs to a file
+                // TODO Run makeXML when done analyzing paragraphs
+                // TODO Run makeXML when hitting request limit from Alchemy
+            };
+
+            // ******************** 
+            // Find out how many Alchemy API requests you have left! This way you can test the number of remaining calls versus the number of words in the next paragraph
+            // and pause analysis until the next 24 hour period. Eat the elephant one bite at a time.
+            var alchemy_calls_left = function(){
+                // Typical response from Alchemy:
+                //{
+                //        "status": "OK",
+                //        "consumedDailyTransactions": "1020",
+                //        "dailyTransactionLimit": "1000"
+                // }
+                // This URL tells us how many calls we have left in a day
+                
+                // Query to find sentiment in raw text or one word. If one word the language is assumed to be English.
+                var urlQuery = alchemyAPICount + "?apikey=" + api_key + "&outputMode=" + outputMode;
+                
+                $.get( urlQuery, function(results){
+                    console.log(results);
+                });
             }
+
+            //alchemy_calls_left();
         </script>
     </body>
 </html>
